@@ -1,14 +1,14 @@
+import cv2
+import numpy as np
 import streamlit as st
 from pathlib import Path
 from PIL import Image
+from ultralytics import YOLO
 
 # Get relative path
 img_path = Path(__file__).parents[0]
 # Load images
 logo_img = Image.open(f"{img_path}/Images/Logo.png")
-
-# # Load a pretrained YOLO model (recommended for training)
-# model = YOLO('yolov8n.pt')
 
 # Set the page title and icon and set layout to "wide" to minimise margains
 st.set_page_config(page_title="AI-Video-Analysis", page_icon=":camera_with_flash:")
@@ -34,26 +34,37 @@ with st.container():
     st.write("---")
 
 with st.container():
-    st.subheader("Select a sample video or upload your own!")
-    sample_video = False
-    # Create a column for each button
-    button_l, button_r = st.columns((1, 1))
+    # Select the file to use
+    option = st.selectbox('Please select the sample you wish to analyse', ('Sample_1', 'Sample_2'))
 
-    # Add button one, which opens the first video when pressed
-    with button_l:
-        if st.button("Sample 1"):
-            with open(f'{img_path}/Videos/Sample_1.mov', 'rb') as video_file:
-                sample_video = video_file.read()
+    if st.button("Run!"):
+        with st.status("Processing video", expanded=True) as status:
+            st.write("Loading model: YOLOv8n...")
+            model = YOLO("yolov8n.pt")
 
-    # Add button two, which opens the second video when pressed
-    with button_r:
-        if st.button("Sample 2"):
-            with open(f'{img_path}/Videos/Sample_2.mov', 'rb') as video_file:
-                sample_video = video_file.read()
+            # Open the video file
+            st.write("Opening video...")
+            video_path = f"{img_path}/Videos/{option}.mov"
+            cap = cv2.VideoCapture(video_path)
 
-    # Add file uploader
-    uploaded_video = st.file_uploader("Choose a file", type=["mp4", "mov"], accept_multiple_files=False)
-    if uploaded_video:
-        st.video(uploaded_video)
-    if sample_video:
-        st.video(sample_video)
+            # Create list to store annotated frames
+            annotated_frames = []
+
+            # Loop through the video frames
+            st.write("Processing frames...")
+            vid_cap = cv2.VideoCapture(video_path)
+            st_frame = st.empty()
+            while vid_cap.isOpened():
+                success, image = vid_cap.read()
+                if success:
+                    res = model.predict(image, conf=0.4)
+                    result_tensor = res[0].boxes
+                    res_plotted = res[0].plot()
+                    st_frame.image(res_plotted,
+                                   caption='Detected Video',
+                                   channels="BGR",
+                                   use_column_width=True
+                                   )
+                else:
+                    vid_cap.release()
+                    break
