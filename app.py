@@ -51,9 +51,6 @@ with st.container():
         # Get the number of frames
         no_frames = int(vid_cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        # Create empty streamlit frame to display results
-        st_frame = st.empty()
-
         # Create a progress bar
         progress_text = "Processing frames..."
         prog_bar = st.progress(0, text=progress_text)
@@ -62,6 +59,9 @@ with st.container():
         # Create frame counter
         frame_ctr = 1
 
+        # Create list to store annotated frames
+        annotated_frames = []
+
         # Loop through the video frames
         while vid_cap.isOpened():
             success, image = vid_cap.read()
@@ -69,13 +69,15 @@ with st.container():
                 res = model.predict(image, conf=0.4)
                 result_tensor = res[0].boxes
                 res_plotted = res[0].plot()
-                st_frame.image(res_plotted,
-                               caption='Detected Video',
-                               channels="BGR",
-                               use_column_width=True
-                               )
+                annotated_frames.append(res_plotted)
                 prog_bar.progress(frame_ctr*percent_prog, text=progress_text)
                 frame_ctr += 1
             else:
                 vid_cap.release()
                 break
+
+        # Create empty streamlit frame to display results
+        st_frame = st.empty()
+        # Iterate through annotated frames
+        for frame_img in annotated_frames:
+            st_frame.image(frame_img, caption='Detected Video', channels="BGR", use_column_width=True)
