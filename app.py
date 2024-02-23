@@ -38,33 +38,44 @@ with st.container():
     option = st.selectbox('Please select the sample you wish to analyse', ('Sample_1', 'Sample_2'))
 
     if st.button("Run!"):
-        with st.status("Processing video", expanded=True) as status:
+        with st.status("Loading resources") as status:
             st.write("Loading model: YOLOv8n...")
             model = YOLO("yolov8n.pt")
 
             # Open the video file
             st.write("Opening video...")
             video_path = f"{img_path}/Videos/{option}.mov"
-            cap = cv2.VideoCapture(video_path)
 
-            # Create list to store annotated frames
-            annotated_frames = []
+        # Open the video
+        vid_cap = cv2.VideoCapture(video_path)
+        # Get the number of frames
+        no_frames = int(vid_cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-            # Loop through the video frames
-            st.write("Processing frames...")
-            vid_cap = cv2.VideoCapture(video_path)
-            st_frame = st.empty()
-            while vid_cap.isOpened():
-                success, image = vid_cap.read()
-                if success:
-                    res = model.predict(image, conf=0.4)
-                    result_tensor = res[0].boxes
-                    res_plotted = res[0].plot()
-                    st_frame.image(res_plotted,
-                                   caption='Detected Video',
-                                   channels="BGR",
-                                   use_column_width=True
-                                   )
-                else:
-                    vid_cap.release()
-                    break
+        # Create empty streamlit frame to display results
+        st_frame = st.empty()
+
+        # Create a progress bar
+        progress_text = "Processing frames..."
+        prog_bar = st.progress(0, text=progress_text)
+        # Calculate the progress each frames makes
+        percent_prog = 1 / no_frames
+        # Create frame counter
+        frame_ctr = 1
+
+        # Loop through the video frames
+        while vid_cap.isOpened():
+            success, image = vid_cap.read()
+            if success:
+                res = model.predict(image, conf=0.4)
+                result_tensor = res[0].boxes
+                res_plotted = res[0].plot()
+                st_frame.image(res_plotted,
+                               caption='Detected Video',
+                               channels="BGR",
+                               use_column_width=True
+                               )
+                prog_bar.progress(frame_ctr*percent_prog, text=progress_text)
+                frame_ctr += 1
+            else:
+                vid_cap.release()
+                break
